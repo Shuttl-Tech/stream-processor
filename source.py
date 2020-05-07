@@ -19,7 +19,7 @@ class Source:
         return _BatchOperator(count, self)
 
     def concat(self):
-        return Source(itertools.chain(self))
+        return _ConcatOperator(self)
 
     def list(self) -> List:
         return list(self)
@@ -34,6 +34,20 @@ class Source:
         return next(self.__iter__())
 
 
+class _ConcatOperator(Source):
+    def __init__(self, parent: "Source") -> None:
+        super().__init__(parent)
+        self._parent = parent
+
+    def take(self, count: int) -> Iterator:
+        return Source(next(self) for _ in range(count))
+
+    def __iter__(self):
+        for itr in self._parent:
+            for sub_itr in itr:
+                yield sub_itr
+
+
 class _MapOperator(Source):
     def __init__(self, func: Callable, scheduler, parent: "Source") -> None:
         super().__init__(parent)
@@ -42,10 +56,9 @@ class _MapOperator(Source):
         self._func = func
 
     def take(self, count):
-        self._scheduler.add_tasks(
-            (self._func, task) for task in self._parent.take(count)
-        )
-        return self._scheduler.results()
+        for item in self._parent.take(count):
+            self._scheduler.add_task(self._func, item)
+        return Source(self._scheduler.results())
 
     def __iter__(self):
         return map(self._func, self._parent)
@@ -56,6 +69,9 @@ class _BatchOperator(Source):
         super().__init__(parent)
         self._count = count
         self._parent = parent
+
+    def take(self, count: int) -> Iterator:
+        return Source(next(self) for _ in range(count))
 
     def __iter__(self):
         while True:
