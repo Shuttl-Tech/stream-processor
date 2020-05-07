@@ -2,7 +2,7 @@ import itertools
 from typing import List, Set, Callable, Iterator, Iterable, Union, Generator, Any
 
 
-class Source:
+class Stream:
     def __init__(self, items: Union[Iterator, Iterable, Generator]):
         self._items = iter(items)
 
@@ -10,10 +10,10 @@ class Source:
         return _MapOperator(func, scheduler, self)
 
     def filter(self, func: Callable):
-        return Source(filter(func, self))
+        return Stream(filter(func, self))
 
     def take(self, count: int) -> Iterator:
-        return Source(next(self) for _ in range(count))
+        return Stream(next(self) for _ in range(count))
 
     def batch(self, count: int) -> Iterator:
         return _BatchOperator(count, self)
@@ -34,13 +34,13 @@ class Source:
         return next(self.__iter__())
 
 
-class _ConcatOperator(Source):
-    def __init__(self, parent: "Source") -> None:
+class _ConcatOperator(Stream):
+    def __init__(self, parent: "Stream") -> None:
         super().__init__(parent)
         self._parent = parent
 
     def take(self, count: int) -> Iterator:
-        return Source(next(self) for _ in range(count))
+        return Stream(next(self) for _ in range(count))
 
     def __iter__(self):
         for itr in self._parent:
@@ -48,8 +48,8 @@ class _ConcatOperator(Source):
                 yield sub_itr
 
 
-class _MapOperator(Source):
-    def __init__(self, func: Callable, scheduler, parent: "Source") -> None:
+class _MapOperator(Stream):
+    def __init__(self, func: Callable, scheduler, parent: "Stream") -> None:
         super().__init__(parent)
         self._parent = parent
         self._scheduler = scheduler
@@ -58,20 +58,20 @@ class _MapOperator(Source):
     def take(self, count):
         for item in self._parent.take(count):
             self._scheduler.add_task(self._func, item)
-        return Source(self._scheduler.results())
+        return Stream(self._scheduler.results())
 
     def __iter__(self):
         return map(self._func, self._parent)
 
 
-class _BatchOperator(Source):
-    def __init__(self, count: int, parent: "Source") -> None:
+class _BatchOperator(Stream):
+    def __init__(self, count: int, parent: "Stream") -> None:
         super().__init__(parent)
         self._count = count
         self._parent = parent
 
     def take(self, count: int) -> Iterator:
-        return Source(next(self) for _ in range(count))
+        return Stream(next(self) for _ in range(count))
 
     def __iter__(self):
         while True:
