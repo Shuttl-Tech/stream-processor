@@ -1,7 +1,7 @@
 import itertools
 from concurrent.futures import ThreadPoolExecutor
-from typing import Callable, Iterator, Tuple, Any, Union, Dict
-from tasks import Task, TaskContext
+from typing import Callable, Iterator, Tuple, Any, Union
+from tasks import Task, TaskContext, TaskState
 from abc import ABC
 from collections import defaultdict
 
@@ -54,6 +54,7 @@ class ThreadPoolScheduler(Scheduler):
         )  # Making Scheduler's on_task_complete as default handler
         task.set_on_complete_handler(self._on_task_complete)
         self._tasks = itertools.chain(self._tasks, (task, params))
+        task.get_context().set_state(TaskState.QUEUED)
 
     def results(self) -> Iterator:
         pool = ThreadPoolExecutor(max_workers=self._max_workers)
