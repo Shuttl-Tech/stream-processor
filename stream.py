@@ -13,7 +13,7 @@ class Stream:
         return Stream(filter(func, self))
 
     def take(self, count: int) -> Iterator:
-        return Stream(next(self) for _ in range(count))
+        return Stream(itertools.islice(self, count))
 
     def batch(self, count: int) -> Iterator:
         return _BatchOperator(count, self)
@@ -40,7 +40,7 @@ class _ConcatOperator(Stream):
         self._parent = parent
 
     def take(self, count: int) -> Iterator:
-        return Stream(next(self) for _ in range(count))
+        return Stream(itertools.islice(self, count))
 
     def __iter__(self):
         for itr in self._parent:
@@ -71,7 +71,7 @@ class _BatchOperator(Stream):
         self._parent = parent
 
     def take(self, count: int) -> Iterator:
-        return Stream(next(self) for _ in range(count))
+        return Stream(itertools.islice(self, count))
 
     def __iter__(self):
         while True:
