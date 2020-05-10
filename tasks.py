@@ -1,15 +1,15 @@
 import inspect
-from enum import Enum
-from typing import Any, Optional, Callable, Dict
+from typing import Any, Optional, Callable
 
+from exceptions import TaskHandlerException, InvalidStateTransition
+from state import TaskState, State
 
-class TaskState(Enum):
-    CREATED = "CREATED"
-    QUEUED = "QUEUED"
-    RUNNING = "RUNNING"
-    TERMINATED = "TERMINATED"
-    ERROR = "ERROR"
-    SUCCESS = "SUCCESS"
+OnQueueCallable = Callable[["TaskContext"], None]
+OnStartCallable = Callable[["TaskContext"], None]
+OnFailureCallable = Callable[[Exception, "TaskContext"], None]
+OnRejectionCallable = Callable[["TaskContext"], None]
+OnTerminationCallable = Callable[["TaskContext"], None]
+OnCompletionSuccessCallable = Callable[[Any, "TaskContext"], None]
 
 
 class TaskContext:
@@ -17,42 +17,104 @@ class TaskContext:
         self,
         name: str,
         *,
-        state: TaskState = None,
-        on_complete: Callable = None,
-        **kwargs
+        on_queue_handler: OnQueueCallable = None,
+        on_start_handler: OnStartCallable = None,
+        on_failure_handler: OnFailureCallable = None,
+        on_rejection_handler: OnRejectionCallable = None,
+        on_termination_handler: OnTerminationCallable = None,
+        on_completion_success_handler: OnCompletionSuccessCallable = None,
+        **kwargs,
     ):
-        self._state = state
         self._name = name
+        self._task_state = TaskState()
+
+        self._on_queue_handler = on_queue_handler or self._on_queue_handler
+        self._on_start_handler = on_start_handler or self._on_start_handler
+        self._on_failure_handler = on_failure_handler or self._on_failure_handler
+        self._on_rejection_handler = on_rejection_handler or self._on_rejection_handler
+        self._on_termination_handler = (
+            on_termination_handler or self._on_termination_handler
+        )
+        self._on_completion_success_handler = (
+            on_completion_success_handler or self._on_completion_success_handler
+        )
+
         self._kv_store = {}
-        self._results = None
-        if on_complete:
-            self.on_complete = on_complete
+        self._result = None
+        self._error = None
+
         for key, value in kwargs:
             self.set(key, value)
 
     def get_name(self) -> str:
         return self._name
 
-    def on_complete(self, result: str = None, context: str = None) -> None:
-        pass
-
-    def get_results(self) -> Any:
-        return self._results
-
-    def set_results(self, results: Any) -> None:
-        self._results = results
-
-    def set_state(self, state: TaskState) -> None:
-        self._state = state
-
-    def get_state(self) -> TaskState:
-        return self._state
-
     def get(self, key: str) -> Any:
         return self._kv_store.get(key)
 
     def set(self, key: str, value: Any) -> Any:
         self._kv_store[key] = value
+
+    def get_result(self) -> Any:
+        return self._result
+
+    def set_result(self, result: Any) -> None:
+        self._result = result
+
+    def get_error(self) -> Exception:
+        return self._error
+
+    def set_error(self, error: Exception) -> None:
+        self._error = error
+
+    def set_state(self, state: "State") -> None:
+        self._task_state.set_state(state)
+        self._invoke_handlers_for_state_change()
+
+    def get_state(self) -> TaskState:
+        return self._task_state
+
+    def _on_completion_success_handler(
+        self, result: Any, context: "TaskContext"
+    ) -> None:
+        pass
+
+    def _on_queue_handler(self, context: "TaskContext") -> None:
+        pass
+
+    def _on_start_handler(self, context: "TaskContext") -> None:
+        pass
+
+    def _on_rejection_handler(self, context: "TaskContext") -> None:
+        pass
+
+    def _on_termination_handler(self, context: "TaskContext") -> None:
+        pass
+
+    def _on_failure_handler(self, exception: Exception, context: "TaskContext") -> None:
+        raise exception
+
+    def _invoke_handlers_for_state_change(self) -> None:
+        try:
+            if self._task_state == TaskState.QUEUED:
+                self._on_queue_handler(self)
+
+            if self._task_state == TaskState.RUNNING:
+                self._on_start_handler(self)
+
+            if self._task_state == TaskState.TERMINATED:
+                self._on_termination_handler(self)
+
+            if self._task_state == TaskState.REJECTED:
+                self._on_rejection_handler(self)
+
+            if self._task_state == TaskState.FAILED:
+                self._on_failure_handler(self._error, self)
+
+            if self._task_state == TaskState.SUCCESS:
+                self._on_completion_success_handler(self._result, self)
+        except Exception:
+            raise TaskHandlerException
 
 
 class Task:
@@ -61,14 +123,25 @@ class Task:
         func: Callable,
         *,
         name: str = None,
-        on_complete: Callable = None,
-        **kwargs
+        on_queue_handler: OnQueueCallable = None,
+        on_start_handler: OnStartCallable = None,
+        on_failure_handler: OnFailureCallable = None,
+        on_rejection_handler: OnRejectionCallable = None,
+        on_termination_handler: OnTerminationCallable = None,
+        on_completion_success_handler: OnCompletionSuccessCallable = None,
+        **kwargs,
     ):
         self._func = func
         self._context = TaskContext(
-            name or func.__name__, on_complete=on_complete, **kwargs
+            name or func.__name__,
+            on_queue_handler=on_queue_handler,
+            on_start_handler=on_start_handler,
+            on_failure_handler=on_failure_handler,
+            on_rejection_handler=on_rejection_handler,
+            on_termination_handler=on_termination_handler,
+            on_completion_success_handler=on_completion_success_handler,
+            **kwargs,
         )
-        self._context.set_state(TaskState.CREATED)
 
     def __call__(self, *args, **kwargs) -> Optional[Any]:
         self._context.set("args", args)
@@ -81,9 +154,6 @@ class Task:
     def get_context(self) -> TaskContext:
         return self._context
 
-    def set_on_complete_handler(self, handler: Callable) -> None:
-        self._context._on_complete = handler
-
     def _execute(self, *args, **kwargs) -> Optional[Any]:
         result = None
         self._context.set_state(TaskState.RUNNING)
@@ -92,15 +162,14 @@ class Task:
                 kwargs["context"] = self._context
 
             result = self._func(*args, **kwargs)
+            self._context.set_result(result)
             self._context.set_state(TaskState.SUCCESS)
-            self._context.set_results(result)
-            self._context.on_complete(
-                result=result, context=self._context
-            )
+        except TaskHandlerException:
+            raise
+        except InvalidStateTransition:
+            raise
         except Exception as e:
-            self._context.set_state(TaskState.ERROR)
-            self._context.set_results(e)
-            self._context.on_complete(
-                result=e, context=self._context
-            )
+            self._context.set_error(e)
+            self._context.set_state(TaskState.FAILED)
+
         return result
