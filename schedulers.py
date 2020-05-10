@@ -1,35 +1,29 @@
 import itertools
 from concurrent.futures import ThreadPoolExecutor
-from typing import Callable, Iterator, Tuple, Any, Union
-from tasks import Task, TaskContext, TaskState
-from abc import ABC
-from collections import defaultdict
+from typing import Callable, Iterator, Any, Union
 
-DEFAULT_MAX_WORKERS = 4
+from tasks import Task, TaskState
+
+DEFAULT_MAX_WORKERS = 5
 
 
 class Scheduler:
     def __init__(self):
-        self._on_complete_handlers = defaultdict(list)
-        self._tasks = iter(())
+        self._tasks: Iterator[Task] = iter(())
 
-    def register_on_complete_handler(self, name: str, handler: Callable) -> None:
-        self._on_complete_handlers[name].append(handler)
+    def terminate_tasks(self) -> None:
+        for task in self._tasks:
+            task.get_context().set_state(TaskState.TERMINATED)
 
-    def _on_task_complete(self, result: Any, context: TaskContext) -> None:
-        name = context.get_name()
-        for handler in self._on_complete_handlers[name]:
-            handler(result, context)
+    def reject_tasks(self) -> None:
+        for task in self._tasks:
+            task.get_context().set_state(TaskState.REJECTED)
 
     def add_task(
             self, task: Union[Task, Callable], params: Any = None, name: str = None
     ) -> None:
         if not isinstance(task, Task):
             task = Task(task, name=name)
-        self.register_on_complete_handler(
-            name=name, handler=task.get_context().on_complete
-        )  # Making Scheduler's on_task_complete as default handler
-        task.set_on_complete_handler(self._on_task_complete)
         self._tasks = itertools.chain(self._tasks, ((task, params),))
         task.get_context().set_state(TaskState.QUEUED)
 
