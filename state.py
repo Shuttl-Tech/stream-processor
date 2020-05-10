@@ -14,7 +14,7 @@ class State:
 
 class CREATED(State):
     def next(self, state: "State") -> "State":
-        if state in [self, TaskState.QUEUED]:
+        if state in [self, TaskState.QUEUED, TaskState.RUNNING]:
             return state
         self.raise_invalid_transition(state)
 
