@@ -14,28 +14,28 @@ class State:
 
 class CREATED(State):
     def next(self, state: "State") -> "State":
-        if state in [self, TaskState.QUEUED, TaskState.RUNNING]:
+        if state in [TaskState.QUEUED, TaskState.RUNNING]:
             return state
         self.raise_invalid_transition(state)
 
 
 class QUEUED(State):
     def next(self, state: "State") -> "State":
-        if state in [self, TaskState.RUNNING, TaskState.TERMINATED, TaskState.REJECTED]:
+        if state in [TaskState.RUNNING, TaskState.TERMINATED, TaskState.REJECTED]:
             return state
         self.raise_invalid_transition(state)
 
 
 class RUNNING(State):
     def next(self, state: "State") -> "State":
-        if state in [self, TaskState.FAILED, TaskState.SUCCESS]:
+        if state in [TaskState.FAILED, TaskState.SUCCESS]:
             return state
         self.raise_invalid_transition(state)
 
 
 class TERMINATED(State):
     def next(self, state: "State") -> "State":
-        if state in [self, TaskState.REJECTED]:
+        if state in [TaskState.REJECTED]:
             return state
         self.raise_invalid_transition(state)
 
