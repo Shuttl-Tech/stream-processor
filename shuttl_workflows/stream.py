@@ -2,7 +2,7 @@ import itertools
 from copy import deepcopy
 from typing import List, Set, Callable, Iterator, Iterable, Union, Generator, Any
 
-from schedulers import Scheduler, SerialScheduler
+from shuttl_workflows.schedulers import Scheduler, SerialScheduler
 
 
 class Stream:
@@ -21,7 +21,7 @@ class Stream:
     def batch(self, count: int) -> "Stream":
         return _BatchOperator(count, self)
 
-    def concat(self):
+    def concat(self) -> "Stream":
         return _ConcatOperator(self)
 
     def list(self) -> List:

@@ -1,8 +1,8 @@
 import inspect
 from typing import Any, Optional, Callable
 
-from exceptions import TaskHandlerException, InvalidStateTransition
-from state import TaskState, State
+from shuttl_workflows.exceptions import TaskHandlerException, InvalidStateTransition
+from shuttl_workflows.state import TaskState, State
 
 OnQueueCallable = Callable[["TaskContext"], None]
 OnStartCallable = Callable[["TaskContext"], None]
@@ -96,22 +96,22 @@ class TaskContext:
 
     def _invoke_handlers_for_state_change(self) -> None:
         try:
-            if self._task_state == TaskState.QUEUED:
+            if self._task_state == State.QUEUED:
                 self._on_queue_handler(self)
 
-            if self._task_state == TaskState.RUNNING:
+            if self._task_state == State.RUNNING:
                 self._on_start_handler(self)
 
-            if self._task_state == TaskState.TERMINATED:
+            if self._task_state == State.TERMINATED:
                 self._on_termination_handler(self)
 
-            if self._task_state == TaskState.REJECTED:
+            if self._task_state == State.REJECTED:
                 self._on_rejection_handler(self)
 
-            if self._task_state == TaskState.FAILED:
-                self._on_failure_handler(self._error, self)
+            if self._task_state == State.FAILED:
+                self._on_failure_handler(self.get_error(), self)
 
-            if self._task_state == TaskState.SUCCESS:
+            if self._task_state == State.SUCCESS:
                 self._on_completion_success_handler(self._result, self)
         except Exception:
             raise TaskHandlerException
@@ -156,20 +156,20 @@ class Task:
 
     def _execute(self, *args, **kwargs) -> Optional[Any]:
         result = None
-        self._context.set_state(TaskState.RUNNING)
+        self._context.set_state(State.RUNNING)
         try:
             if "context" in inspect.getfullargspec(self._func).args:
                 kwargs["context"] = self._context
 
             result = self._func(*args, **kwargs)
             self._context.set_result(result)
-            self._context.set_state(TaskState.SUCCESS)
+            self._context.set_state(State.SUCCESS)
         except TaskHandlerException:
             raise
         except InvalidStateTransition:
             raise
         except Exception as e:
             self._context.set_error(e)
-            self._context.set_state(TaskState.FAILED)
+            self._context.set_state(State.FAILED)
 
         return result
