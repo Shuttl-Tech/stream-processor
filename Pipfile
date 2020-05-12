@@ -11,7 +11,6 @@ pytest-runner = "*"
 hypothesis = "*"
 
 [packages]
-jupyter = "*"
 
 [requires]
 python_version = "3.7"
