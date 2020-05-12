@@ -1,6 +1,6 @@
 from hypothesis import given
 from hypothesis.strategies import integers, lists
-import itertools
+
 from shuttl_workflows.stream import Stream
 
 
@@ -49,7 +49,7 @@ def test_batch(count):
     result = Stream(stream).batch(count)
 
     for i in range(0, 100, count):
-        assert data[i: i+count] == list(next(result))
+        assert data[i : i + count] == list(next(result))
 
 
 @given(data=lists(elements=integers(), max_size=1000))
@@ -64,10 +64,7 @@ def test_concat(data):
             _data = _data[chunk_size:]
             yield chunk
 
-    result = (
-        Stream(_batch(data))
-        .concat()
-    )
+    result = Stream(_batch(data)).concat()
     assert data == list(result)
 
 
@@ -77,11 +74,7 @@ def test_batch_with_concat_stream(count):
     data = list(range(100))
 
     stream = iter(data)
-    result = (
-        Stream(stream)
-        .batch(count)
-        .concat()
-    )
+    result = Stream(stream).batch(count).concat()
 
     assert data == list(result)
 
@@ -103,9 +96,5 @@ def test_take_with_map_stream(count):
     expected_result = list(map(some_func, data[:count]))
 
     scheduler = _FakeScheduler()
-    result = (
-        Stream(data)
-        .map(some_func, scheduler=scheduler)
-        .take(count)
-    )
+    result = Stream(data).map(some_func, scheduler=scheduler).take(count)
     assert expected_result == list(result)
