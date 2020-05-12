@@ -13,7 +13,7 @@ class Stream:
         return _MapOperator(func, self, scheduler)
 
     def filter(self, func: Callable) -> "Stream":
-        return Stream(filter(deepcopy(func), self))
+        return Stream(item for item in self if deepcopy(func)(item))
 
     def take(self, count: int) -> "Stream":
         return Stream(itertools.islice(self, count))
@@ -66,7 +66,7 @@ class _MapOperator(Stream):
         return Stream(self._scheduler.results())
 
     def __iter__(self):
-        return map(deepcopy(self._func), self._parent)
+        return (deepcopy(self._func)(task) for task in self._parent)
 
 
 class _BatchOperator(Stream):
