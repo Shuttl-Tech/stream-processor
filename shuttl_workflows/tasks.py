@@ -99,7 +99,7 @@ class TaskContext:
     @state.setter
     def state(self, state: State) -> None:
         if not self._is_valid_move(self._state, state):
-            raise InvalidStateTransition(f"Invalid transition from {self} to {state}")
+            raise InvalidStateTransition(f"Invalid transition from {self.state} to {state}")
         self._state = state
         self._invoke_handlers_for_state_change()
 
