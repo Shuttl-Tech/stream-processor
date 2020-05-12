@@ -83,4 +83,4 @@ class _BatchOperator(Stream):
             batch = self._parent.take(self._count).list()
             if not batch:
                 return
-            yield iter(batch)
+            yield batch

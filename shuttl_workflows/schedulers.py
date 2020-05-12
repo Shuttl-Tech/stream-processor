@@ -1,42 +1,46 @@
 import itertools
+from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
-from typing import Callable, Iterator, Any, Union
+from typing import Callable, Iterator, Any, Union, Type
 
+from shuttl_workflows.exceptions import InvalidTask
 from shuttl_workflows.tasks import Task, State
 
 DEFAULT_MAX_WORKERS = 5
 
 
-class Scheduler:
+class Scheduler(ABC):
     def __init__(self):
-        self._tasks: Iterator[Task] = iter(())
+        self.tasks: Iterator[Task] = iter(())
 
     def terminate_tasks(self) -> None:
-        for task in self._tasks:
-            task.get_context().set_state(State.TERMINATED)
+        for task in self.tasks:
+            task.state = State.TERMINATED
 
     def reject_tasks(self) -> None:
-        for task in self._tasks:
-            task.get_context().set_state(State.REJECTED)
+        for task in self.tasks:
+            task.state = State.REJECTED
 
-    def add_task(
-        self, task: Union[Task, Callable], params: Any = None, name: str = None
-    ) -> None:
-        if not isinstance(task, Task):
-            task = Task(task, name=name)
-        self._tasks = itertools.chain(self._tasks, ((task, params),))
-        task.get_context().set_state(State.QUEUED)
+    def add_task(self, task: Union[Task, Callable], params: Any = None) -> None:
 
+        if isinstance(task, Task):
+            task = task
+        elif isinstance(task, Callable):
+            task = Task(task)
+        else:
+            raise InvalidTask("Expected Callable or instance of Task")
+
+        self.tasks = itertools.chain(self.tasks, ((task, params),))
+        task.state = State.QUEUED
+
+    @abstractmethod
     def results(self) -> Iterator:
-        pass
+        raise NotImplemented
 
 
 class SerialScheduler(Scheduler):
-    def __init__(self):
-        super().__init__()
-
     def results(self) -> Iterator:
-        return (task(params) for task, params in self._tasks)
+        return (task(params) for task, params in self.tasks)
 
 
 class ThreadPoolScheduler(Scheduler):
@@ -46,13 +50,10 @@ class ThreadPoolScheduler(Scheduler):
         self._pool = ThreadPoolExecutor(max_workers=self._max_workers)
 
     def results(self) -> Iterator:
-        task_futures = [self._pool.submit(task, params) for task, params in self._tasks]
+        task_futures = [self._pool.submit(task, params) for task, params in self.tasks]
         return (r.result() for r in task_futures)
 
 
 class SchedulerFactory:
-    def __new__(cls, scheduler_name, *args, **kwargs) -> "Scheduler":
-        if scheduler_name == "ThreadPool":
-            return ThreadPoolScheduler(*args, **kwargs)
-        if scheduler_name == "Serial":
-            return SerialScheduler()
+    def __new__(cls, classname: Type["Scheduler"], *args, **kwargs) -> "Scheduler":
+        return classname(*args, **kwargs)

@@ -4,3 +4,7 @@ class TaskHandlerException(Exception):
 
 class InvalidStateTransition(Exception):
     pass
+
+
+class InvalidTask(Exception):
+    pass
