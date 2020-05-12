@@ -5,43 +5,59 @@ This Python module provides an easy syntax for manipulating, querying, schedulin
 Batch processing is a technique of processing data that occur in one large group instead of individually. Batch processing is usually done to help conserve system resources and allow for any modifications before being processed.
 
 ```python
-from shuttl_workflows import Source, SchedulerFactory, Task
+from shuttl_workflows.stream import Stream
+from shuttl_workflows.schedulers import ThreadPoolScheduler 
+from shuttl_workflows.tasks import Task
 
-thread_pool_scheduler = SchedulerFactory("ThreadPoolScheduler", max_workers=3)
+thread_pool_scheduler = ThreadPoolScheduler(max_workers=3)
 
-def hello_world(x):
+def hello_world(x, context=None):
+    context["message"] = "Hello World"
     return f"{x} Hello World"
 
 
-def hello_success(response):
+def hello_success(response, context=None):
+    print(f"Message from context {context['message']}")
     print(f"Successfully executed with response {response}")
 
 
-def hello_error(exception):
+def hello_error(exception, context=None):
     raise exception
 
 
 data = [1, 2, 3, 4, 5, 6]
 response = (
-    Source(data)
+    Stream(data)
     .batch(3)
     .map(
-        Task(hello_world, on_success=hello_success, on_error=hello_error),
+        Task(
+            hello_world, 
+            on_completion_success_handlers=[hello_success], 
+            on_failure_handlers=[hello_error]
+        ),
         scheduler=thread_pool_scheduler,
     )
 )
 print(list(response))
-# => ["(1, 2, 3) Hello World", "(4, 5, 6) Hello World"]
-# Successfully executed with response (1, 2, 3) Hello World"
-# Successfully executed with response (4, 5, 6) Hello World"
+
+# Message from context Hello World
+#
+# Successfully executed with response [1, 2, 3] Hello World is the result
+#
+# Message from context Hello World
+#
+# Successfully executed with response [4, 5, 6] Hello World is the result
+# => ['[1, 2, 3] Hello World is the result', '[4, 5, 6] Hello World is the result']
 ```
 
 ## Schedule tasks
 Here we can choose between the different type of execution like ThreadPool, ProcessPool and AsyncIO.
-Soon we will add support for tasks like gevent, eventlet and greenlet
+Currently we only support ThreadPool and Serial but soon other options will be added.
 ```python
 import asyncio
-from shuttl_workflows import Source, SchedulerFactory, Task
+from shuttl_workflows.schedulers import ThreadPoolScheduler, SerialScheduler
+from shuttl_workflows.tasks import Task
+
 
 task = Task(
     lambda x: x * 2,
@@ -49,7 +65,7 @@ task = Task(
     on_error=lambda err: print(err),
 )
 
-thread_pool_scheduler = SchedulerFactory("ThreadPoolScheduler", max_workers=20)
+thread_pool_scheduler = ThreadPoolScheduler(max_workers=20)
 thread_pool_scheduler.add_task(task, 10)
 thread_pool_scheduler.add_task(task, "A")
 thread_pool_scheduler.results()
@@ -57,21 +73,11 @@ thread_pool_scheduler.results()
 # Executed with result 20
 # Executed with result "AA"
 
-process_pool_scheduler = SchedulerFactory("ProcessPoolScheduler", max_workers=20)
-process_pool_scheduler.add_task(task, 20)
-thread_pool_scheduler.add_task(task, "B")
-process_pool_scheduler.results()
+serial_scheduler = SerialScheduler()
+serial_scheduler.add_task(task, 20)
+serial_scheduler.add_task(task, "B")
+serial_scheduler.results()
 # => (40, "BB")
 # Executed with result 40
 # Executed with result "BB"
-
-event_loop_scheduler = SchedulerFactory(
-    "AsyncIOScheduler", loop=asyncio.get_event_loop(), type="uvloop"
-)
-event_loop_scheduler.add_task(task, 30)
-thread_pool_scheduler.add_task(task, "C")
-event_loop_scheduler.results()
-# => (60, "CC")
-# Executed with result 60
-# Executed with result CC
 ```
