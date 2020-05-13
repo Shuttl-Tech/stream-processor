@@ -62,35 +62,22 @@ class TaskContext:
     ):
         self._state = State.CREATED
 
-        self._on_queue_handlers = on_queue_handlers or []
-        self._on_start_handlers = on_start_handlers or []
-        self._on_failure_handlers = on_failure_handlers or []
-        self._on_rejection_handlers = on_rejection_handlers or []
-        self._on_termination_handlers = on_termination_handlers or []
-        self._on_completion_success_handlers = on_completion_success_handlers or []
+        self._handler_map = {
+            State.CREATED: [],
+            State.QUEUED: on_queue_handlers or [],
+            State.RUNNING: on_start_handlers or [],
+            State.FAILED: on_failure_handlers or [],
+            State.REJECTED: on_rejection_handlers or [],
+            State.TERMINATED: on_termination_handlers or [],
+            State.SUCCESS: on_completion_success_handlers or [],
+        }
 
         self._kv_store = {}
-        self._result = None
-        self._error = None
+        self.result = None
+        self.error = None
 
         for key, value in kwargs.items():
             self[key] = value
-
-    @property
-    def result(self) -> Any:
-        return self._result
-
-    @result.setter
-    def result(self, result: Any) -> None:
-        self._result = result
-
-    @property
-    def error(self) -> Exception:
-        return self._error
-
-    @error.setter
-    def error(self, error: Exception) -> None:
-        self._error = error
 
     @property
     def state(self) -> State:
@@ -103,8 +90,7 @@ class TaskContext:
         self._state = state
         self._invoke_handlers_for_state_change()
 
-    @staticmethod
-    def _is_valid_move(from_state, to_state):
+    def _is_valid_move(self, from_state, to_state):
         return to_state in MOVES.get(from_state, [])
 
     def _publish_event(self, handlers: List[Callable], *args, **kwargs) -> None:
@@ -115,24 +101,13 @@ class TaskContext:
 
     def _invoke_handlers_for_state_change(self) -> None:
         try:
-            if self.state == State.QUEUED:
-                self._publish_event(self._on_queue_handlers)
-
-            if self.state == State.RUNNING:
-                self._publish_event(self._on_start_handlers)
-
-            if self.state == State.TERMINATED:
-                self._publish_event(self._on_termination_handlers)
-
-            if self.state == State.REJECTED:
-                self._publish_event(self._on_rejection_handlers)
-
             if self.state == State.FAILED:
-                self._publish_event(self._on_failure_handlers, self.error)
+                self._publish_event(self._handler_map[State.FAILED], self.error)
 
             if self.state == State.SUCCESS:
-                self._publish_event(self._on_completion_success_handlers, self.result)
+                self._publish_event(self._handler_map[State.SUCCESS], self.result)
 
+            self._publish_event(self._handler_map[self.state])
         except Exception:
             raise TaskHandlerException
 
