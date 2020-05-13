@@ -38,7 +38,7 @@ response = (
         scheduler=thread_pool_scheduler,
     )
 )
-print(list(response))
+list(response)
 
 # Message from context Hello World
 #
@@ -54,30 +54,27 @@ print(list(response))
 Here we can choose between the different type of execution like ThreadPool, ProcessPool and AsyncIO.
 Currently we only support ThreadPool and Serial but soon other options will be added.
 ```python
-import asyncio
-from shuttl_workflows.schedulers import ThreadPoolScheduler, SerialScheduler
+from shuttl_workflows.schedulers import ThreadPoolScheduler
 from shuttl_workflows.tasks import Task
 
 
-task = Task(
+task_1 = Task(
     lambda x: x * 2,
-    on_success=lambda x: print(f"Executed with result {x}"),
-    on_error=lambda err: print(err),
+    on_completion_success_handlers=[lambda x: print(f"Executed with result {x}")],
+    on_failure_handlers=[lambda err: print(err)],
+)
+
+task_2 = Task(
+    lambda x: x * 3,
+    on_completion_success_handlers=[lambda x: print(f"Executed with result {x}")],
+    on_failure_handlers=[lambda err: print(err)],
 )
 
 thread_pool_scheduler = ThreadPoolScheduler(max_workers=20)
-thread_pool_scheduler.add_task(task, 10)
-thread_pool_scheduler.add_task(task, "A")
-thread_pool_scheduler.results()
-# => (20, "AA")
+thread_pool_scheduler.add_task(task_1, 10)
+thread_pool_scheduler.add_task(task_2, 20)
+list(thread_pool_scheduler.results())
 # Executed with result 20
-# Executed with result "AA"
-
-serial_scheduler = SerialScheduler()
-serial_scheduler.add_task(task, 20)
-serial_scheduler.add_task(task, "B")
-serial_scheduler.results()
-# => (40, "BB")
-# Executed with result 40
-# Executed with result "BB"
+# Executed with result 60
+# => [20, 60]
 ```
