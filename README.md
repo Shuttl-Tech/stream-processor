@@ -1,4 +1,4 @@
-# shuttl-workflows
+# stream-processor
 This Python module provides an easy syntax for manipulating, querying, scheduling, batch processing and handling tasks.
 
 ## Batching Tasks
