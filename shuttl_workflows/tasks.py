@@ -103,11 +103,10 @@ class TaskContext:
         try:
             if self.state == State.FAILED:
                 self._publish_event(self._handler_map[State.FAILED], self.error)
-
-            if self.state == State.SUCCESS:
+            elif self.state == State.SUCCESS:
                 self._publish_event(self._handler_map[State.SUCCESS], self.result)
-
-            self._publish_event(self._handler_map[self.state])
+            else:
+                self._publish_event(self._handler_map[self.state])
         except Exception:
             raise TaskHandlerException
 
