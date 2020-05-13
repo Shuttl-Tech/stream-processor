@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 from hypothesis import given
 from hypothesis.strategies import integers, text, one_of
 
-from shuttl_workflows.schedulers import ThreadPoolScheduler
-from shuttl_workflows.tasks import Task, State
+from stream_processor.schedulers import ThreadPoolScheduler
+from stream_processor.tasks import Task, State
 
 
 @given(param=one_of([text(min_size=1), integers()]),)

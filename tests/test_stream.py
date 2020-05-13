@@ -1,7 +1,7 @@
 from hypothesis import given
 from hypothesis.strategies import integers, lists
 
-from shuttl_workflows.stream import Stream
+from stream_processor.stream import Stream
 
 
 def some_func(x):

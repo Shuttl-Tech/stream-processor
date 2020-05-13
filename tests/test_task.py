@@ -1,7 +1,7 @@
 from hypothesis import given
 from hypothesis.strategies import integers, text, one_of
 
-from shuttl_workflows.tasks import Task, TaskContext, State
+from stream_processor.tasks import Task, TaskContext, State
 
 
 def some_func(x):

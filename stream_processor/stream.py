@@ -2,7 +2,7 @@ import itertools
 from copy import deepcopy
 from typing import List, Set, Callable, Iterator, Iterable, Union, Generator, Any
 
-from shuttl_workflows.schedulers import Scheduler, SerialScheduler
+from stream_processor.schedulers import Scheduler, SerialScheduler
 
 
 class Stream:

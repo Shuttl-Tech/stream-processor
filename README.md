@@ -5,9 +5,9 @@ This Python module provides an easy syntax for manipulating, querying, schedulin
 Batch processing is a technique of processing data that occur in one large group instead of individually. Batch processing is usually done to help conserve system resources and allow for any modifications before being processed.
 
 ```python
-from shuttl_workflows.stream import Stream
-from shuttl_workflows.schedulers import ThreadPoolScheduler 
-from shuttl_workflows.tasks import Task
+from stream_processor.stream import Stream
+from stream_processor.schedulers import ThreadPoolScheduler 
+from stream_processor.tasks import Task
 
 thread_pool_scheduler = ThreadPoolScheduler(max_workers=3)
 
@@ -54,8 +54,8 @@ list(response)
 Here we can choose between the different type of execution like ThreadPool, ProcessPool and AsyncIO.
 Currently we only support ThreadPool and Serial but soon other options will be added.
 ```python
-from shuttl_workflows.schedulers import ThreadPoolScheduler
-from shuttl_workflows.tasks import Task
+from stream_processor.schedulers import ThreadPoolScheduler
+from stream_processor.tasks import Task
 
 
 task_1 = Task(

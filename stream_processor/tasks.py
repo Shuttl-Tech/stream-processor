@@ -2,7 +2,7 @@ import inspect
 from enum import Enum
 from typing import Any, Optional, Callable, List
 
-from shuttl_workflows.exceptions import TaskHandlerException, InvalidStateTransition
+from stream_processor.exceptions import TaskHandlerException, InvalidStateTransition
 
 OnQueueCallable = Callable[[Optional["TaskContext"]], None]
 OnStartCallable = Callable[[Optional["TaskContext"]], None]

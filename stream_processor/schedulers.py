@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Iterator, Any, Union, Type
 
-from shuttl_workflows.exceptions import InvalidTask
-from shuttl_workflows.tasks import Task, State
+from stream_processor.exceptions import InvalidTask
+from stream_processor.tasks import Task, State
 
 DEFAULT_MAX_WORKERS = 5
 

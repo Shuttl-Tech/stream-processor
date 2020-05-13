@@ -1,8 +1,8 @@
 from hypothesis import given
 from hypothesis.strategies import integers, text, one_of
 
-from shuttl_workflows.schedulers import ThreadPoolScheduler, SerialScheduler
-from shuttl_workflows.tasks import Task, State
+from stream_processor.schedulers import ThreadPoolScheduler, SerialScheduler
+from stream_processor.tasks import Task, State
 
 
 def some_func(x):

@@ -1,7 +1,7 @@
 import setuptools
 
 setuptools.setup(
-    name="shuttl_workflows",
+    name="stream-processor",
     version="0.0.1",
     description="Library for stream processing",
     url="https://github.com/shuttl-tech/shuttl_workflows",
