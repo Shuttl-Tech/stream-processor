@@ -2,7 +2,7 @@ import itertools
 from copy import deepcopy
 from typing import List, Set, Callable, Iterator, Iterable, Union, Generator, Any
 
-from stream_processor.schedulers import Scheduler, SerialScheduler
+from stream_processor.schedulers import Scheduler, SerialScheduler, ThreadPoolScheduler
 
 
 class Stream:
@@ -29,6 +29,9 @@ class Stream:
 
     def set(self) -> Set:
         return set(self)
+
+    def parallel_process(self):
+        return _ParallelOperator(self)
 
     def __iter__(self):
         return self._items
@@ -68,6 +71,8 @@ class _MapOperator(Stream):
     def __iter__(self):
         return (deepcopy(self._func)(task) for task in self._parent)
 
+    # how is it ensured that both are running in parallel
+
 
 class _BatchOperator(Stream):
     def __init__(self, count: int, parent: "Stream") -> None:
@@ -84,3 +89,22 @@ class _BatchOperator(Stream):
             if not batch:
                 return
             yield batch
+
+
+class _ParallelOperator(Stream):
+    def __init__(self, parent: "Stream"):
+        super().__init__(parent)
+        self._parent = parent
+
+    def _add_to_queue(self, gen):
+        return [item for item in gen]
+
+    def take(self, count: int) -> "Stream":
+        sch = ThreadPoolScheduler()
+        for item in self._parent.take(count):
+            sch.add_task(self._add_to_queue, item)
+        return Stream(sch.results())
+
+    def __iter__(self):
+        for gen in self._parent:
+            yield from gen

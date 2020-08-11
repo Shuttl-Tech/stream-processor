@@ -1,3 +1,5 @@
+import time
+
 from hypothesis import given
 from hypothesis.strategies import integers, lists
 
@@ -98,3 +100,19 @@ def test_take_with_map_stream(count):
     scheduler = _FakeScheduler()
     result = Stream(data).map(some_func, scheduler=scheduler).take(count)
     assert expected_result == list(result)
+
+
+def test_parallel_process():
+    def g1():
+        yield 1
+        time.sleep(2)
+        yield 2
+
+    def g2():
+        yield 10
+        time.sleep(2)
+        yield 20
+
+    data = [g1(), g2()]
+    response = Stream(data).parallel_process().batch(2).concat()
+    assert [[1, 2], [10, 20]] == list(response)
